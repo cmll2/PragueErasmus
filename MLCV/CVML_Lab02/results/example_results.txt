@@ -1,0 +1,20 @@
+Indices written in this file are 0-based (as computed by Python) - matlab is 1-based (all indices +1)
+
+>>> python .\lab02_features.py --task=measure
+Selected feature indices: [1, 4, 5, 6]
+Consistency fitness:         0.9857
+Correlation based fitness:   -0.0672
+Interclass distance fitness: 4.0505
+Mutual information fitness:  0.9285
+
+>>> python .\lab02_features.py --task=one-step
+[4, 19, 8]	consistency
+[7, 20, 21]	correlation
+[10, 8, 0]	interclass distance
+[4, 19, 8]	mutual information
+
+>>> python .\lab02_features.py --task=sequential
+[4, 19, 2]	consistency
+[7, 20, 21]	correlation
+[10, 9, 0]	interclass distance
+[4, 19, 21]	mutual information
