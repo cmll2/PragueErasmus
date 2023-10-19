@@ -1,0 +1,23 @@
+Define Beta distribution, describe its parameters. Plot (roughly) the following distributions: Beta(1,1), Beta(0.1,0.1), Beta(10, 10).
+
+Derive the posterior distribution from the prior (Beta distribution) and likelihood (Binomial distribution). Derive the predictive distribution for the Beta-Bernoulli posterior.
+
+Explain Dirichlet distribution, describe its parameters. Plot (roughly) the following distributions: Dir(1,1,1), Dir(0.1,0.1,0.1), Dir(10, 10, 10).
+
+Derive the posterior distribution from the prior (Dirichlet distribution) and likelihood (Multinomial distribution). Derive the predictive distribution for the Dirichlet-Categorical posterior.
+
+Explain the "Mixture of Categoricals" model (a topic is assigned to each document) for Modeling document collections. Describe all its parameters and hyperparameters. From what distributions are they drawn? Describe the Expectation-Maximization algorithm for training such model.
+
+Explain the Latent Dirichlet Allocation model (a topic is asigned to each word in each document). Describe all its parameters and hyperparameters. From what distributions are they drawn? What are the latent variables? Describe the learning algorithm.
+
+Explain Collapsed Gibbs sampling. Choose one unsupervised task from the lectures (word alignment, tagging, segmentation) and describe the basic algorithm. What is annealing?
+
+Explain Chinese Restaurant Process. What distributions does it generate? What is exchangeability? Explain its generalization to the Pitman-Yor process.
+
+Explain the K-means and Gaussian Mixture model for clustering. What are the advantages of Gaussian Mixture model? Provide an example of clusters in 2D where K-means fails and where Gaussian Mixture model works well.
+
+Explain Hierarchical Agglomerative clustering methods. What are their advantages over K-means? What linkage criteria do you know? Provide examples of clusters in 2D where these criteria fail.
+
+What is t-SNE? How does it work? What is it used for?
+
+What is Principal Component Analysis? How does it work? What is it used for? Explain it in a 2D example.
