@@ -38,10 +38,10 @@ class GaussianNB:
             # Select all samples from the current class self.cnames[clIdx].
             Xi = data[labels == self.cnames[clIdx]]
             # TODO: Compute the mean and standard deviation for every feature(pixel).
-            self.mean_class[:, clIdx] = None
-            self.std_class[:, clIdx] = None
+            self.mean_class[:, clIdx] = np.mean(Xi, axis=0)
+            self.std_class[:, clIdx] = np.std(Xi, axis=0)
             # TODO: Compute the class probability (Prior).
-            self.p_class[clIdx] = None
+            self.p_class[clIdx] = Xi.shape[0] / numSamples
         
         self._trainingCompleted = True
 
@@ -64,7 +64,7 @@ class GaussianNB:
             p_cond[:, std == 0] = 0
             p_cond = np.log(np.where(p_cond > 0, p_cond, 1))
             # TODO: Compute the likelihood (decision function) for every image and class.
-            class_likelihood[:, clIdx] = None
+            class_likelihood[:, clIdx] = np.sum(p_cond, axis=1) + np.log(self.p_class[clIdx])
         
         return class_likelihood
 
@@ -75,22 +75,22 @@ def main():
     # You might have to rename the variables in the following code depending on what you call
     # your data variables.
     # TODO: Ensure that the mnist arrays have the following shape:
-    # - train.imgs as       60000x400
+    # - train.images as       60000x400
     # - train.labels as     1x60000 (1D vector of 60000 elements)
-    # - test.imgs as        10000x400
+    # - test.images as        10000x400
     # - test.labels as      1x10000 (1D vector of 10000 elements)
-    train = lab04_help.MnistDataset("mnist_train.npz")
-    test = lab04_help.MnistDataset("mnist_test.npz")
+    train = lab04_help.MnistDataset("../CVML_Lab01/mnist.npz")
+    test = lab04_help.MnistDataset("../CVML_Lab01/t10k.npz")
 
     # TODO: Implement the 'fit' method of 'GaussianNB' at the top of the source file.
     # - We train the gaussian bayes classifer by estimating means and standard deviations of each class,
     #   which are then used for prediction.
     bayesClassifier = GaussianNB()
-    bayesClassifier.fit(train.imgs, train.labels)
+    bayesClassifier.fit(train.images, train.labels)
 
     # TODO: Now, complete the body of the function 'GaussianNB.predict()'.
-    train_class_likelihood = bayesClassifier.predict(train.imgs)
-    test_class_likelihood = bayesClassifier.predict(test.imgs)
+    train_class_likelihood = bayesClassifier.predict(train.images)
+    test_class_likelihood = bayesClassifier.predict(test.images)
 
     # Select the most probable classes.
     idx_train = np.argmax(train_class_likelihood, axis=1)
@@ -98,8 +98,8 @@ def main():
 
     # TODO: Compute the accuracy of the classification.
     # - How many of the selected class indices match the original labels?
-    train_accuracy = None
-    test_accuracy = None
+    train_accuracy = np.sum(idx_train == train.labels) / train.labels.shape[0]
+    test_accuracy = np.sum(idx_test == test.labels) / test.labels.shape[0]
 
     print("Train set accuracy {:.2f}%".format(100 * train_accuracy))
     print("Test set accuracy {:.2f}%".format(100 * test_accuracy))
@@ -107,7 +107,7 @@ def main():
     # Let's look at images created from the probabilities, they should resemble
     # the digits.
     _, ax = plt.subplots(1, len(bayesClassifier.cnames), figsize=(20, 3), subplot_kw={'aspect': 'equal'})
-    side = int(np.round(np.sqrt(train.imgs.shape[1])))
+    side = int(np.round(np.sqrt(train.images.shape[1])))
     for clIdx in range(len(bayesClassifier.cnames)):
         ax[clIdx].imshow(np.reshape(np.random.normal(bayesClassifier.mean_class[:, clIdx], bayesClassifier.std_class[:, clIdx]), [side, side]), cmap='Greys_r')
     plt.tight_layout()

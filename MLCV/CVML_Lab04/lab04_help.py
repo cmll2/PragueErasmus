@@ -19,7 +19,7 @@ class MnistDataset:
     this class or write your own loader.
     """
 
-    def __init__(self, data : str = "mnist_train.npz", labels : str = None):
+    def __init__(self, data : str = "../CVML_Lab01/mnist.npz", labels : str = None):
 
         if not os.path.exists(data):
             raise ValueError("Requested mnist data file not found!")

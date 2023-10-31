@@ -87,17 +87,18 @@ def main(args : argparse.Namespace) -> None:
 
     # TODO: Compute the standard deviation for all datasets and name it 'sig'.
     # - The result should be a list similar to 'y'.
-    sig = None
+    sig = [np.std(data[i]) for i in range(len(data))]
 
     # TODO: Compute the multi-modal bandwidth for all datasets and name it 'multi_bw'.
     # - Bandwidth is called 'h' in the lecture slides.
     # - The result should be a list similar to 'y'.
-    multi_bw = None
+    multi_bw = [0.9 * min(sig[i], IQR[i] / 1.34) * len(data[i]) ** (-1/5) for i in range(len(data))]
 
     # TODO: Compute the unimodal bandwidth for all datasets and name it 'uni_bw'.
     # - Bandwidth is called 'h' in the lecture slides.
     # - The result should be a list similar to 'y'.
-    uni_bw = None
+    uni_bw = [1.06 * sig[i] * len(data[i]) ** (-1/5) for i in range(len(data))]
+
 
     if multi_bw is not None:
         kde_iqr = [

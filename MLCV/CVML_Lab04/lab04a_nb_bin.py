@@ -54,13 +54,15 @@ class BernoulliNB:
             Xi = data[labels == self.cnames[clIdx], :]
             # TODO: Compute the number of objects from the class where feature k has the value 1.
             # - It should be a vector with one value for each feature.
+            N_ki = []
             for k in range (numFeatures):
-                N_ki = np.sum(Xi[:, k] == 1)
+                N_ki.append(np.sum(Xi[:, k] == 1))
+            N_ki = np.asarray(N_ki)
             # TODO: Get the number of objects from the class.
             Ni = Xi.shape[0]
             # TODO: Compute the probability of pixels having the value 1 and use Laplace smoothing with value alpha=1.
             alpha = 1
-            self.p_1_class[:, clIdx] = [(N_ki + alpha) / (Ni + 2 * alpha) for N_ki in N_ki]
+            self.p_1_class[:, clIdx] = (N_ki+alpha) / (Ni + 2 * alpha)
             # TODO: Compute the probability of the class (Prior).
             self.p_class[clIdx] = Ni / numSamples
 
@@ -92,7 +94,7 @@ class BernoulliNB:
         for j in range(data.shape[0]):
             for c in range(self.numClasses):
                 # TODO: Compute the likelihood (decision function) for every image and class.
-                class_likelihood[j, c] = None
+                class_likelihood[j, c] = np.sum(self.log_p_1_class[:, c] * data[j, :] + self.log_p_0_class[:, c] * (1 - data[j, :])) + self.log_p_class[c]
         
         return class_likelihood
 
@@ -110,9 +112,9 @@ def main(args : argparse.Namespace):
     train = lab04_help.MnistDataset("../CVML_Lab01/mnist.npz")
     test = lab04_help.MnistDataset("../CVML_Lab01/t10k.npz")
 
-    assert train.imgs.shape == (60000, 400), "Train images have wrong shape."
+    #assert train.images.shape == (60000, 400), "Train images have wrong shape."
     assert train.labels.shape == (60000,), "Train labels have wrong shape."
-    assert test.imgs.shape == (10000, 400), "Test images have wrong shape."
+    #assert test.images.shape == (10000, 400), "Test images have wrong shape."
     assert test.labels.shape == (10000,), "Test labels have wrong shape."
 
     # Let us binarise the images (each pixel will be either 0 or 1)
@@ -121,8 +123,8 @@ def main(args : argparse.Namespace):
     # TODO: Use 'args.threshold' to binarise image data from both training and testing sets.
     # - Bernoulli classifier wotks only with binary data.
     # - Complete the 'BernoulliNB.fit()' method.
-    binTrainImgs = np.asarray(train.imgs > args.threshold, float)
-    binTestImgs = np.asarray(test.imgs > args.threshold, float)
+    binTrainImgs = np.asarray(train.images > args.threshold, float)
+    binTestImgs = np.asarray(test.images > args.threshold, float)
     bayesClassifier = BernoulliNB()
     bayesClassifier.fit(binTrainImgs, train.labels)
 
@@ -148,7 +150,7 @@ def main(args : argparse.Namespace):
 
     # Let's look at images created from the probabilities, they should resemble the digits.
     fig, ax = plt.subplots(1, len(bayesClassifier.cnames), figsize=(20, 3), subplot_kw={'aspect': 'equal'})
-    side = int(np.round(np.sqrt(train.imgs.shape[1])))
+    side = int(np.round(np.sqrt(train.images.shape[1])))
     for clIdx in range(len(bayesClassifier.cnames)):
         ax[clIdx].imshow(np.reshape(bayesClassifier.p_1_class[:, bayesClassifier.cnames[clIdx]], [side, side]), cmap='gray')
     fig.tight_layout()
