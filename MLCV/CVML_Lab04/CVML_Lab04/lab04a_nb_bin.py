@@ -54,7 +54,8 @@ class BernoulliNB:
             Xi = data[labels == self.cnames[clIdx], :]
             # TODO: Compute the number of objects from the class where feature k has the value 1.
             # - It should be a vector with one value for each feature.
-            N_ki = None
+            for k in range (numFeatures):
+                Ni = np.sum(Xi[:, k] == 1)
             # TODO: Get the number of objects from the class.
             Ni = None
             # TODO: Compute the probability of pixels having the value 1 and use Laplace smoothing with value alpha=1.
