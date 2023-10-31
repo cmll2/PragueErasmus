@@ -1,0 +1,12 @@
+337.best meilleur avec lalgo de base
+
+80.best meilleur avec limplementation de la mutation adaptative + prob_flip impair / nb_weight car il faut alterner en moyenne pour que les bins ne soient pas tjr pareil
+et two pt cross
+
+cest dur de faire converger au debut, quelque changement de param peuvent empecher totalement la convergence
+
+avec three point cross on arrive au 53.best
+
+cx_prob * (fitness1 / fitness2) * (1 - (fitness1 / max_fit )) test cx_prob adaptative
+
+mutation adaptative selon le rank

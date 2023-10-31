@@ -35,7 +35,7 @@ def get_experiment_stats(prefix, exp_id, stat_type='objective'):
         evals, stats = read_run_file(fn)
         data.append(pd.Series([s.max for s in stats], index=evals))
     data_frame = pd.DataFrame(data)
-    data_frame.fillna(method='ffill', inplace=True, axis=1)
+    data_frame.ffill(inplace=True, axis=1)
     return (data_frame.columns.values, np.min(data_frame, axis=0), 
             np.percentile(data_frame, q=25, axis=0), 
             np.mean(data_frame, axis=0), 

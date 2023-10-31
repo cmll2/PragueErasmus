@@ -1,0 +1,7 @@
+>>> python .\lab04a_nb_bin.py --threshold=0.4
+Train set accuracy: 83.54%
+Test set accuracy: 84.56%
+
+>>> python .\lab04b_nb_norm.py
+Train set accuracy 77.24%
+Test set accuracy 78.58%

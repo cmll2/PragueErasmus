@@ -1,0 +1,19 @@
+The following matrices show results computed from file "hald.mat".
+- Matrices computed from "ovariancancer.mat" are quite large and "hald" should be sufficient for verifying correctness.
+
+>>> python .\lab03b_pca_svd.py
+Angles between B and V
+[[ 0. 90. 90. 90.]
+ [90.  0. 90. 90.]
+ [90. 90.  0. 90.]
+ [90. 90. 90.  0.]]
+Angles between V and coef
+[[180.  90.  90.  90.]
+ [ 90.   0.  90.  90.]
+ [ 90.  90. 180.  90.]
+ [ 90.  90.  90. 180.]]
+Angles between B and coef
+[[180.  90.  90.  90.]
+ [ 90.   0.  90.  90.]
+ [ 90.  90. 180.  90.]
+ [ 90.  90.  90. 180.]]

@@ -1,0 +1,2 @@
+>>> python .\lab03c_scree.py --task=pcselection
+Number of features for 95% explained variance: 6
