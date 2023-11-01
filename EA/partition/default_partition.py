@@ -4,7 +4,7 @@ import functools
 
 import utils
 
-K = 10  #number of piles
+K = 5  #number of piles
 POP_SIZE =  1000 # population size
 MAX_GEN = 10000 # maximum number of generations
 CX_PROB = 0.04 # crossover probability
