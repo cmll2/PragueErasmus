@@ -10,15 +10,24 @@ import sklearn
 from sklearn import linear_model
 from sklearn import metrics
 import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 parser = argparse.ArgumentParser()
 # These arguments will be set appropriately by ReCodEx, even if you change them.
 parser.add_argument("--predict", default=None, type=str, help="Path to the dataset to predict")
 parser.add_argument("--recodex", default=False, action="store_true", help="Running in ReCodEx")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
+parser.add_argument("--epochs", default=10, type=int, help="Number of SGD training epochs")
 # For these and any other arguments you add, ReCodEx will keep your default value.
 parser.add_argument("--model_path", default="diacritization.model", type=str, help="Model path")
 
+def diacritize_word(input_word, vectorizer, clf):
+    input_vector = vectorizer.transform([input_word])
+    diacritized_word = clf.predict(input_vector)
+    return diacritized_word[0]
 
 class Dataset:
     LETTERS_NODIA = "acdeeinorstuuyz"
@@ -49,19 +58,47 @@ def main(args: argparse.Namespace) -> Optional[str]:
         train = Dataset()
 
         train_data = train.data
-        train_target = train.target
+        train_data = train_data.split()
+        train_data = np.array(train_data)
+        # keep indices of each first occurence of a word in the list
+        _, indices = np.unique(train_data, return_index=True)
+        train_data = train_data[indices].tolist()
+        #now train target
+        train_target = np.array(train.target.split())[indices].tolist()
 
-        mlb = sklearn.preprocessing.MultiLabelBinarizer(classes = )
+        tfidf_vectorizer = TfidfVectorizer()
+        X = tfidf_vectorizer.fit_transform(train_data)
+        from sklearn.preprocessing import LabelEncoder
+        from sklearn.naive_bayes import MultinomialNB
+        # Label encoding
+        label_encoder = LabelEncoder()
+        y = label_encoder.fit_transform(train_target)
 
+        # Train-test split
+        #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # TODO: Train a model on the given dataset and store it in `model`.
-        model = sklearn.linear_model.LogisticRegression(C=1, solver="lbfgs", multi_class="multinomial", max_iter=1000)
+        # Model selection and training
+        classifier = MultinomialNB()
+        classifier.fit(X, y)
+
+        # Model evaluation
+        y_pred = classifier.predict(X)
+        accuracy = accuracy_score(y, y_pred)
+        print(f'Accuracy: {accuracy}')
 
         # Serialize the model.
         with lzma.open(args.model_path, "wb") as model_file:
-            pickle.dump(model, model_file)
+            pickle.dump(classifier, model_file)
+
+        #store the vectorizer
+        with lzma.open('vectorizer.pkl', 'wb') as vectorizer_file:
+            pickle.dump(tfidf_vectorizer, vectorizer_file)
+
+        with lzma.open('label_encoder.pkl', 'wb') as label_encoder_file:
+            pickle.dump(label_encoder, label_encoder_file)
         
-        print("precision: ", sklearn.metrics.precision_score(train.target, model.predict(train.data)), "\n")
+        y_label = label_encoder.inverse_transform(y_pred)
+        return " ".join(y_label)
 
     else:
         # Use the model and return test set predictions.
@@ -70,11 +107,20 @@ def main(args: argparse.Namespace) -> Optional[str]:
         with lzma.open(args.model_path, "rb") as model_file:
             model = pickle.load(model_file)
 
-        # TODO: Generate `predictions` with the test set predictions. Specifically,
-        # produce a diacritized `str` with exactly the same number of words as `test.data`.
-        predictions = ...
+        with lzma.open('vectorizer.pkl', "rb") as vectorizer_file:
+            vectorizer = pickle.load(vectorizer_file)
 
-        return predictions
+        with lzma.open('label_encoder.pkl', "rb") as label_encoder_file:
+            label_encoder = pickle.load(label_encoder_file)
+
+        test_data = test.data
+        test_data = test_data.split()
+        test_data_matrix = vectorizer.transform(test_data)
+
+        predicted_label = model.predict(test_data_matrix)
+        predicted_diacritic = label_encoder.inverse_transform(predicted_label)
+
+        return " ".join(predicted_diacritic)
 
 
 if __name__ == "__main__":
