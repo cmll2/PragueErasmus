@@ -1,0 +1,8 @@
+In this assignment, every results are on the {function}_convergence.png graphs.
+
+First part :
+
+For the first part, I tried to ways to use the differential evolution. First, I mutated the whole population and then I did the nsga2 selection using the fronts etc. to select the new population.
+Second, I simply used the sum of the fitness functions to determine wheter you keep or not the mutated individual.
+
+Both functions worked pretty well compared to the default implementation. The sum-way was a bit better than the nsga2 way except for the ZDT6 function.

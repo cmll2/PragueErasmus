@@ -19,8 +19,8 @@ FitObjPair = namedtuple('FitObjPair', ['fitness', 'objective'])
 #   mean - the main line in the plot
 #   upper - upper boundary of shaded area
 #   legend_name - name in the plot legend
-def plot_experiment(evals, lower, mean, upper, legend_name=''):
-    plt.plot(evals, mean, label=legend_name)
+def plot_experiment(evals, lower, mean, upper, legend_name='', linestyle='-'):
+    plt.plot(evals, mean, label=legend_name, linestyle=linestyle)
     plt.fill_between(evals, lower, upper, alpha=0.25)
 
 # reads the run logs and computes experiment statisticts (those used for plots)
@@ -35,7 +35,7 @@ def get_experiment_stats(prefix, exp_id, stat_type='objective'):
         evals, stats = read_run_file(fn)
         data.append(pd.Series([s.max for s in stats], index=evals))
     data_frame = pd.DataFrame(data)
-    data_frame.fillna(method='ffill', inplace=True, axis=1)
+    data_frame.fillna(inplace=True, axis=1, method='ffill')
     return (data_frame.columns.values, np.min(data_frame, axis=0), 
             np.percentile(data_frame, q=25, axis=0), 
             np.mean(data_frame, axis=0), 

@@ -1,0 +1,56 @@
+>>> python .\evaluator.py --test=independent --seed=42 --x_scatter=0.25 --train_size=200 --test_size=150 --k_neighbors=9 --confidence_alpha=0.05
+Error difference: -0.01111, and error values NB: 0.02667, KNN: 0.03778.
+Critical value of normal distribution (two-tailed) for alpha=0.05 is 1.95996.
+Interval of the true error: -0.01111 +- 0.02306
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: False.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=paired --seed=42 --x_scatter=0.25 --train_size=200 --test_size=150 --k_neighbors=9 --confidence_alpha=0.05 --paired_k_splits=3
+SE - variance of errors: 0.00588
+Critical value of the Student's t-distribution (two-tailed) for alpha=0.05 is 4.30265
+Interval of the true error difference: 0.00444 +- 0.02530
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: False.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=corrected --seed=42 --x_scatter=0.25 --train_size=200 --test_size=150 --k_neighbors=9 --confidence_alpha=0.05 --corrected_kfold_splits=3
+Corrected SE - variance of errors: 0.00264
+Critical value of the Student's t-distribution (two-tailed) for alpha=0.05 is 4.30265.
+Interval of the true error difference: -0.00167 +- 0.01134
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: False.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=mcnemar --seed=42 --x_scatter=0.25 --train_size=200 --test_size=150 --k_neighbors=9 --confidence_alpha=0.05
+Marginal homogeneity M: 0.12500
+Critical value of chi2 distribution (single-tailed) with 1 DoF and alpha=0.05 is 3.84146
+The number of different decisions of the classifier: 8, is the result meaningful?: False
+Can we reject H0?, i.e. is M greater than the critical value?: False.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=independent --seed=1337 --x_scatter=0.5 --train_size=2000 --test_size=1000 --k_neighbors=7 --confidence_alpha=0.05
+Error difference: -0.01200, and error values NB: 0.21400, KNN: 0.22600.
+Critical value of normal distribution (two-tailed) for alpha=0.05 is 1.95996.
+Interval of the true error: -0.01200 +- 0.02096
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: False.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=paired --seed=1337 --x_scatter=0.5 --train_size=2000 --test_size=1000 --k_neighbors=7 --confidence_alpha=0.05 --paired_k_splits=3
+SE - variance of errors: 0.00100
+Critical value of the Student's t-distribution (two-tailed) for alpha=0.05 is 4.30265
+Interval of the true error difference: -0.02400 +- 0.00430
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: True.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=corrected --seed=1337 --x_scatter=0.5 --train_size=2000 --test_size=1000 --k_neighbors=7 --confidence_alpha=0.05 --corrected_kfold_splits=3
+Corrected SE - variance of errors: 0.00139
+Critical value of the Student's t-distribution (two-tailed) for alpha=0.05 is 4.30265.
+Interval of the true error difference: -0.01617 +- 0.00600
+Can we reject H0?, i.e. is 0 outside of the true error difference interval?: True.
+
+=============================================================================================================================================================================
+>>> python .\evaluator.py --test=mcnemar --seed=1337 --x_scatter=0.5 --train_size=2000 --test_size=1000 --k_neighbors=7 --confidence_alpha=0.05
+Marginal homogeneity M: 17.75000
+Critical value of chi2 distribution (single-tailed) with 1 DoF and alpha=0.05 is 3.84146
+The number of different decisions of the classifier: 284, is the result meaningful?: True
+Can we reject H0?, i.e. is M greater than the critical value?: True.
+
+=============================================================================================================================================================================

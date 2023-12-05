@@ -1,0 +1,4 @@
+1. parents union offspring
+2. divide PuO into non dominative groups
+3. compute secondary criterion (e.g. x1 x2 x3, secondary criterion for x2 is cuboid, crowding distance to x1 and x3) -s (this is hypervolume contribution)
+4. order the inds by (F,-s) and select |P| best

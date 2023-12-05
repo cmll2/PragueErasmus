@@ -1,0 +1,36 @@
+For the graphs, the {function_name}_convergence.png are the most readable ones. There are not all the methods but I plotted what I thought were the most interesting ones for each part.
+However, there are still less readable ones to compare more specifically two methods (it will be said in the report).
+
+Adaptive Methods :
+
+For the first part, I first tried to implement an adaptive mutation that was using the derivative to mutate in the 'right' direction.
+It worked really well on f01 due to the simple shape of the function, but it was not working at all on the other functions. This was pretty previsible due to the presence of local minimum, the result would then be very correlated to the start location.
+You can see the results obtained on the convergence_derivative.png graph.
+
+I then tried to implement a mutation with an adaptive probability depending on whether the individual is 'good' or not relatively to the entire population.
+I implemented one using their rank as a multiplier prob*(rank/population_size) so that the best individual would have a probability of 0 mutating and the worst one a probability of 1.
+The other idea was simpler, we just look whether the individual is in the top half of the population or not and we set the probability to 0.5 or 0.2 depending on the result.
+
+Overall, I was kind of disappointed by the results, in fact it was even worse for some functions. At the end, I lowered the step and I upped the generation number so that it avoids jumping over the minimum.
+It was the best implementation and the only one that got better results for every functions. You can see the results obtained on the adaptiveProbRankLowerStep.png graph.
+You can see the comparison between both adaptive methods on the ConvergenceBoolRank.png graph.
+
+Differential Evolution :
+
+For the differential evolution, I implemented the version that we saw on the lecture. I used 3 parents for the mutation part and 1 for the crossover. Also, I select the best individual between the child and the parent to keep in the population.
+The results were very good for all the functions and converged very quickly (except for the f06 one but it still converged in less than 1000 generations). You can see the result compared to the adaptive rank mutation on the convergenceRankDiff.png graph.
+Then, I implemented a version where F is chosen randomly between 0.5 and 1. And finally, I adaptively changed CR depending on the seprability of the function. It overall was the best method although it was not the best for f06.
+
+As I said at the beginning to see the overall results, you can check the {function_name}_convergence.png graphs. I thought it was easier to see the results function per function with every method.
+
+Third part :
+
+First I tried to implement the Lamarck mutation, for that I tried to improve during life the individual by substrating the gradient of the fitness of the individual. But it didn't work, so I tried using random mutation and keeping it if it was a good mutation.
+Neither of those two implementations worked, but at the end the problem was elsewhere. I implemented a cool_down() function so that the step_size would decrease while the generation number increases. It worked way better, probably avoiding jumping over the minimum again and again.
+The Lamarck 'learning process' is made through only 5 iterations.
+
+This cool_down() idea came from the Simulated Annealing method. I implemented this too, using the cool_down() for the step_size and the temperature. It didn't work if step_size was fixed too.
+
+Both of those methods converges, but way slower than the differential evolution, although they always drop to 0 at some point for every functions (except f06 for Lamarck where it follows the differential evolution). We can also see that Lamarck implementation is faster than the Simulated Annealing at the beginning.
+
+You can find the results on the {function}_LamBalDiffconvergence.png graphs. I just compared with the differential evolution method as it is the most relevant one to compare with and so it is well readable. The first methods were clearly not as efficient.

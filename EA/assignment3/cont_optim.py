@@ -7,12 +7,12 @@ import utils
 
 DIMENSION = 10 # dimension of the problems
 POP_SIZE = 100 # population size
-MAX_GEN = 500 # maximum number of generations
+MAX_GEN = 2500 # maximum number of generations
 CX_PROB = 0.8 # crossover probability
-MUT_PROB = 0.2 # mutation probability
-MUT_STEP = 0.5 # size of the mutation steps
+MUT_PROB = 0.4 # mutation probability
+MUT_STEP = 0.2 # size of the mutation steps
 REPEATS = 10 # number of runs of algorithm (should be at least 10)
-OUT_DIR = 'continuous' # output directory for logs
+OUT_DIR = 'continuous_diff2500test' # output directory for logs
 EXP_ID = 'default' # the ID of this experiment (used to create log names)
 
 
@@ -55,6 +55,67 @@ class Mutation:
     def __call__(self, ind):
         return ind + self.step_size*np.random.normal(size=ind.shape)
 
+class DerivativeMutation(Mutation):
+
+    def __init__(self, step_size, fitness_function, prob=0.2):
+        super().__init__(step_size)
+        self.fitness_function = fitness_function
+        self.prob = prob
+
+    def __call__(self, ind): #use gradient to mutate individual accordingly to gradient's right direction
+        if random.random() < self.prob:
+            return ind + self.step_size*np.random.normal(size=ind.shape)
+        else:
+            return ind - self.step_size*cf.numerical_derivative(self.fitness_function, ind)
+        
+class AdaptiveRankMutation(Mutation): #This mutation changes step size adaptively according to the rank of the individual in the population
+    def __init__(self, step_size, pop_size, prob = 0.2):
+        self.step_size = step_size
+        self.pop_size = pop_size
+        self.prob = prob
+
+    def __call__(self, ind, rank):
+        if random.random() < self.prob * (rank/self.pop_size):
+            return ind + self.step_size*np.random.normal(size=ind.shape)
+        else:   
+            return ind
+class AdaptiveBoolMutation(Mutation): #This mutation changes mut prob adaptively according to the rank of the individual in the population
+    def __init__(self, step_size, high_prob, low_prob):
+        self.step_size = step_size
+        self.high_prob = high_prob
+        self.low_prob = low_prob
+
+    def __call__(self, ind, bool): #bool is a boolean value that indicates if the individual is in the worst half of the population
+        if bool:
+            if random.random() < self.high_prob:
+                return ind + self.step_size*np.random.normal(size=ind.shape)
+        else:
+            if random.random() < self.low_prob:
+                return ind + self.step_size*np.random.normal(size=ind.shape)
+        return ind
+    
+class DifferentialMutation(Mutation): #This mutation is an implementation of the differential evolution
+    def __init__(self, F, CR, fitness_function):
+        self.F = F
+        self.CR = CR
+        self.fitness_function = fitness_function
+    def __call__(self, pop):
+        pop_size = len(pop)
+        new_pop = []
+        for i in range(pop_size):
+            r1, r2, r3, r4 = random.sample(pop, 4) #3 parents for the mutation and 1 for the crossover
+            #change F uniformly in range [0.5, 1.0]
+            self.F = random.uniform(0.5, 1.0)
+            new_ind = r1 + self.F*(r2 - r3)
+            for j in range(len(new_ind)):
+                if random.random() > self.CR:
+                    new_ind[j] = r4[j]
+            if self.fitness_function(new_ind).fitness > self.fitness_function(pop[i]).fitness:
+                new_pop.append(new_ind)
+            else:
+                new_pop.append(r1)
+        return new_pop
+
 # applies a list of genetic operators (functions with 1 argument - population) 
 # to the population
 def mate(pop, operators):
@@ -75,10 +136,33 @@ def crossover(pop, cross, cx_prob):
         off.append(o2)
     return off
 
+def sort_population(pop, fitness):
+    population_fitness = [fitness(p).fitness for p in pop]
+    sorted_pop = [p for _, p in sorted(zip(population_fitness, pop), key=lambda pair: pair[0])]
+    return sorted_pop
+
 # applies the mutate function (implementing the mutation of a single individual)
 # to the whole population with probability mut_prob)
-def mutation(pop, mutate, mut_prob):
+
+
+def mutation(pop, mutate, mut_prob): #base mutation function
     return [mutate(p) if random.random() < mut_prob else p[:] for p in pop]
+
+def mutation_bool(pop, mutate, mut_prob, fit): #mutation function that changes mutation probability adaptively
+    fit = list(map(fit, pop))
+    average_fitness = np.mean(fit)
+    worst_half = [f.fitness < average_fitness for f in fit]
+    return [mutate(p, bool) for p, bool in zip(pop, worst_half)]
+
+
+def mutation_rank(pop, mutate, mut_prob, fit): #mutation function that changes mutation probability adaptively to the rank of the individual in the population
+    sorted_pop = sort_population(pop, fit)
+    N = len(sorted_pop)
+    sorted_pop = [mutate(p, i) for i, p in enumerate(sorted_pop)]
+    return sorted_pop
+
+def mutation_diff(pop, mutate, fit):
+    return mutate(pop)
 
 # implements the evolutionary algorithm
 # arguments:
@@ -105,7 +189,6 @@ def evolutionary_algorithm(pop, max_gen, fitness, operators, mate_sel, mutate_in
             log.add_gen(fits_objs, evals)
         fits = [f.fitness for f in fits_objs]
         objs = [f.objective for f in fits_objs]
-
         mating_pool = mate_sel(pop, fits, POP_SIZE)
         offspring = mate(mating_pool, operators)
         pop = offspring[:]
@@ -127,9 +210,25 @@ if __name__ == '__main__':
 
     for fit_gen, fit_name in zip(fit_generators, fit_names):
         fit = fit_gen(DIMENSION)
-        mutate_ind = Mutation(step_size=MUT_STEP)
-        xover = functools.partial(crossover, cross=one_pt_cross, cx_prob=CX_PROB)
+        if fit_name == 'f01' or fit_name == 'f02' or fit_name == 'f10':
+            #separable functions so CR = 0.2
+            CR = 0.2
+        else:
+            #non-separable functions so CR = 0.9
+            CR = 0.9
+        # adaptive rank mutation
+        # mutate_ind = AdaptiveRankMutation(MUT_STEP, POP_SIZE, MUT_PROB)
+        # mut = functools.partial(mutation_rank, mut_prob=MUT_PROB, mutate=mutate_ind, fit=fit)
+        # adaptive bool mutation
+        # mutate_ind = AdaptiveBoolMutation(MUT_STEP, 0.4, 0.05)
+        # mut = functools.partial(mutation_bool, mut_prob=MUT_PROB, mutate=mutate_ind, fit=fit)
+        #default mutation
+        mutate_ind = Mutation(MUT_STEP)
         mut = functools.partial(mutation, mut_prob=MUT_PROB, mutate=mutate_ind)
+        # differential evolution
+        mutate_ind = DifferentialMutation(0.8, 0.9, fit)
+        mut = functools.partial(mutation_diff, mutate=mutate_ind, fit=fit)
+        xover = functools.partial(crossover, cross=one_pt_cross, cx_prob=CX_PROB)
 
         # run the algorithm `REPEATS` times and remember the best solutions from 
         # last generations
@@ -142,7 +241,8 @@ if __name__ == '__main__':
             # create population
             pop = create_pop(POP_SIZE, cr_ind)
             # run evolution - notice we use the pool.map as the map_fn
-            pop = evolutionary_algorithm(pop, MAX_GEN, fit, [xover, mut], tournament_selection, mutate_ind, map_fn=map, log=log)
+            # pop = evolutionary_algorithm(pop, MAX_GEN, fit, [xover, mut], tournament_selection, mutate_ind, map_fn=map, log=log) #default
+            pop = evolutionary_algorithm(pop, MAX_GEN, fit, [mut], tournament_selection, mutate_ind, map_fn=map, log=log) #differential evolution
             # remember the best individual from last generation, save it to file
             bi = max(pop, key=fit)
             best_inds.append(bi)

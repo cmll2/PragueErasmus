@@ -56,15 +56,11 @@ def main(args: argparse.Namespace) -> Optional[str]:
         # We are training a model.
         np.random.seed(args.seed)
         train = Dataset()
-
+        
         train_data = train.data
-        train_data = train_data.split()
-        train_data = np.array(train_data)
-        # keep indices of each first occurence of a word in the list
-        _, indices = np.unique(train_data, return_index=True)
-        train_data = train_data[indices].tolist()
-        #now train target
-        train_target = np.array(train.target.split())[indices].tolist()
+        train_data = train_data.split('\n')
+        train_target = train.target
+        train_target = train_target.split('\n')
 
         tfidf_vectorizer = TfidfVectorizer()
         X = tfidf_vectorizer.fit_transform(train_data)
@@ -114,7 +110,7 @@ def main(args: argparse.Namespace) -> Optional[str]:
             label_encoder = pickle.load(label_encoder_file)
 
         test_data = test.data
-        test_data = test_data.split()
+        test_data = test_data.split('\n')
         test_data_matrix = vectorizer.transform(test_data)
 
         predicted_label = model.predict(test_data_matrix)

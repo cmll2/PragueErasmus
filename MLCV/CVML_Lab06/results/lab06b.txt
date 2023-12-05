@@ -1,0 +1,14 @@
+>>> python .\lab06b_knn.py --task=example --seed=42
+[1.7, 1.7] belongs to class 2 for euclidean distance with count 6.
+[1.7, 1.7] belongs to class 2 for minkowski p=5 distance with count 5.
+[1.7, 1.7] belongs to class 2 for mahalanobis distance with count 9.
+[1.7, 1.7] belongs to class 2 for chebyshev distance with count 5.
+
+>>> python .\lab06b_knn.py --task=classify --seed=42
+Euclidean manual misclassification ratio: 0.1000
+Mahalanobis manual misclassification ratio: 0.0000
+Euclidean sklearn misclassification ratio: 0.1000
+Mahalanobis sklearn misclassification ratio: 0.0000
+
+>>> python .\lab06b_knn.py --task=visualize --seed=42
+see lab06b_visualize.png.
