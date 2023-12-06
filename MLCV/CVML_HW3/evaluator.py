@@ -53,5 +53,7 @@ def main(args : argparse.Namespace) -> None:
         print("Finished test data evaluation in {:.4f} seconds.".format(elapsed))
 
 if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings("ignore")
     args = parser.parse_args([] if "__file__" not in globals() else None)
     main(args)
