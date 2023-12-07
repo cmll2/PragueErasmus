@@ -17,8 +17,9 @@ parser.add_argument("--seed", default=42, type=int, help="Random seed")
 parser.add_argument("--test_size", default=0.25, type=lambda x: int(x) if x.isdigit() else float(x), help="Test size")
 parser.add_argument("--trees", default=1, type=int, help="Number of trees in the forest")
 # If you add more arguments, ReCodEx will keep them with your default values.
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+def softmax(x):
+    x_exp = np.exp(x)
+    return x_exp / np.sum(x_exp, axis=1).reshape(-1,1)
 
 class Leaf:
     def __init__(self, value):
@@ -42,82 +43,98 @@ class Node:
         else:
             return self.right.predict(x)
         
-class GradientBoostedTree:
-    def __init__(self, trees, learning_rate, l2, max_depth):
-        self.trees = trees
+class Tree:
+    def __init__(self, max_depth):
+        self.max_depth = max_depth
+        self.root = Node(None, None, None, None)
+
+    def criterion(self, grad, hess, l2):
+        return -0.5 * (grad ** 2 / (hess + l2))
+
+    def fit(self, X, g, h, l2):
+        self.root = self.__fit(X, g, h, l2, 0)
+
+    def __fit(self, X, g, h, l2, depth):
+        grad = g.sum()
+        hess = h.sum()
+        if depth == self.max_depth or len(X) == 1:
+            return Leaf(-grad / (hess + l2))
+        else:
+            best_feature, best_split, best_gain = None, None, np.inf
+            for feature in range(X.shape[1]):
+                unique_values = np.unique(X[:, feature])
+                for i in range(len(unique_values) - 1):
+                    split = (unique_values[i] + unique_values[i + 1]) / 2
+                    mask = X[:, feature] <= split
+                    gain = self.criterion(g[mask].sum(), h[mask].sum(), l2) + self.criterion(g[~mask].sum(), h[~mask].sum(), l2)
+                    if gain < best_gain:
+                        best_feature, best_split, best_gain = feature, split, gain
+            left_indices = X[:, best_feature] <= best_split
+            right_indices = X[:, best_feature] > best_split
+            if left_indices.sum() == 0 or right_indices.sum() == 0:
+                return Leaf(-grad / (hess + l2))
+            left = self.__fit(X[left_indices], g[left_indices], h[left_indices], l2, depth + 1)
+            right = self.__fit(X[right_indices], g[right_indices], h[right_indices], l2, depth + 1)
+            return Node(best_feature, best_split, left, right)
+        
+    def predict(self, X):
+        return np.array([self.root.predict(x) for x in X])
+        
+class GBTrees:
+    def __init__(self, trees_depth, learning_rate, l2, max_depth):
         self.learning_rate = learning_rate
         self.l2 = l2
         self.max_depth = max_depth
-        self.root = None
+        self.trees = trees_depth
 
-    def criterion(self, g, h):
-        return -0.5 * (np.sum(g) ** 2) / (self.l2 + np.sum(h))
+    def fit(self, X, y):
+        self.classes = int(np.max(y) + 1)
+        self.boosted_trees = [[Tree(self.max_depth) for _ in range(self.classes)] for _ in range(self.trees)]
 
-    def fit(self, X, target):
-        self.root = self._fit(X, target, 0)
+        one_hot = np.eye(self.classes)[y]
+        for depth in range(self.trees):
+            prediction = self.predict(X, depth)
+            g = prediction - one_hot
+            h = prediction * (1 - prediction)
+            for c in range(self.classes):
+                self.boosted_trees[depth][c].fit(X, g[:, c], h[:, c], self.l2)
 
-    def _fit(self, data, target, depth):
-        best_feature, best_split, best_criterion = None, None, np.inf
-        y_pred = np.zeros(len(data))
-        for tree in self.trees:
-            y_pred += self.learning_rate * tree.predict(data)
-        softmax = sigmoid(y_pred)
-        g = softmax - target
-        h = softmax * (1 - softmax)
-        target = g / (self.l2 + h)
-        node_criterion = self.criterion(g, h)
-        print(node_criterion)
-        if node_criterion == 0 or depth == self.max_depth:
-            #convert target to float
-            target = target.astype(int)
-            return Leaf(np.bincount(target).argmax())
-        for feature in range(data.shape[1]):
-            unique_values = np.unique(data[:, feature])
-            for i in range(len(unique_values)-1):
-                split = (unique_values[i] + unique_values[i+1]) / 2
-                left = data[:, feature] <= split
-                right = data[:, feature] > split
-                left_data = data[left]
-                right_data = data[right]
-                left_target = target[left]
-                right_target = target[right]
-                left_pred = np.zeros(len(left_data))
-                right_pred = np.zeros(len(right_data))
-                for tree in self.trees:
-                    left_pred += self.learning_rate * tree.predict(left_data)
-                    right_pred += self.learning_rate * tree.predict(right_data)
-                left_softmax = sigmoid(left_pred)
-                right_softmax = sigmoid(right_pred)
-                left_g = left_softmax - left_target
-                left_h = left_softmax * (1 - left_softmax)
-                right_g = right_softmax - right_target
-                right_h = right_softmax * (1 - right_softmax)
-                left_criterion = self.criterion(left_g, left_h)
-                right_criterion = self.criterion(right_g, right_h)
-                criterion = left_criterion + right_criterion - node_criterion
-                if best_criterion is None or criterion < best_criterion:
-                    best_feature = feature
-                    best_split = split
-                    best_criterion = criterion
-        #print(best_criterion, best_feature, best_split)
-        left = data[:, best_feature] <= best_split
-        right = data[:, best_feature] > best_split
-        if data[left].shape[0] == 0 or data[right].shape[0] == 0:
-            target = target.astype(int)
-            return Leaf(np.bincount(target).argmax())
-        left_node = self._fit(data[left], target[left], depth+1)
-        right_node = self._fit(data[right], target[right], depth+1)
-        return Node(best_feature, best_split, left_node, right_node)
+    def predict(self, X, depth):
+        predictions = np.zeros((len(X), self.classes))
+        for c in range(self.classes):
+            for d in range(depth):
+                predictions[:, c] += self.learning_rate * self.boosted_trees[d][c].predict(X)
+        return softmax(predictions)
     
-    def predict(self, X):
-        return np.array([self.root.predict(x) for x in X])    
+    def true_predict(self, X, depth):
+        return np.argmax(self.predict(X, depth), axis=1)
+
+def plot_tree(tree):
+    import matplotlib.pyplot as plt
+    def _plot_tree(tree, node, depth, pos, x_pos, y_pos, parent=None):
+        if isinstance(node, Leaf):
+            plt.text(x_pos, y_pos, node.value, bbox=dict(boxstyle="circle", fc="white", ec="black", lw=1, alpha=0.5))
+        else:
+            plt.text(x_pos, y_pos, node.split, bbox=dict(boxstyle="square", fc="white", ec="black", lw=1, alpha=0.5))
+        if parent is not None:
+            plt.plot([x_pos, pos[parent][0]], [y_pos, pos[parent][1]], "k-")
+        if not isinstance(node, Leaf) and node.left is not None:
+            pos[id(node.left)] = (x_pos - 2**(max_depth-depth-1), y_pos - 1)
+            _plot_tree(tree, node.left, depth+1, pos, x_pos - 2**(max_depth-depth-1), y_pos - 1, id(node))
+        if not isinstance(node, Leaf) and node.right is not None:
+            pos[id(node.right)] = (x_pos + 2**(max_depth-depth-1), y_pos - 1)
+            _plot_tree(tree, node.right, depth+1, pos, x_pos + 2**(max_depth-depth-1), y_pos - 1, id(node))
+    max_depth = tree.max_depth
+    plt.figure(figsize=(2**max_depth*5, max_depth*5))
+    plt.axis("off")
+    pos = {id(tree.root): (2**(max_depth-1), max_depth-1)}
+    _plot_tree(tree, tree.root, 0, pos, 2**(max_depth-1), max_depth-1)
+    plt.show()
 
 def main(args: argparse.Namespace) -> tuple[list[float], list[float]]:
     # Use the given dataset.
     data, target = getattr(sklearn.datasets, "load_{}".format(args.dataset))(return_X_y=True)
-    #one hot encode target
-    classes = np.max(target) + 1
-    target = np.eye(np.max(target) + 1)[target]
+
     # Split the data randomly to train and test using `sklearn.model_selection.train_test_split`,
     # with `test_size=args.test_size` and `random_state=args.seed`.
     train_data, test_data, train_target, test_target = sklearn.model_selection.train_test_split(
@@ -155,54 +172,24 @@ def main(args: argparse.Namespace) -> tuple[list[float], list[float]]:
     l2 = args.l2
     max_depth = args.max_depth
 
-    y_pred = np.zeros((len(train_data), classes))
-    decision_trees = []
-    # Create the {classes} first decision trees
-    decision_trees_classes = []
-    for c in range(classes):
-        decision_trees_classes.append(DecisionTreeRegressor(max_depth=max_depth))
-        decision_trees_classes[c].fit(train_data, train_target[:, c])
-
-    decision_trees.append(decision_trees_classes)
-
-    # Training loop
-    for t in range(1, trees_to_train):
-        decision_trees_classes = []
-        for c in range(classes):
-            # Create a decision tree minimizing the loss E and using the above criterion
-            #find decision trees
-            decision_trees_class = []
-            for i in range(t):
-                decision_trees_class.append(decision_trees[i][c])
-            decision_trees_classes.append(GradientBoostedTree(trees=decision_trees_class, learning_rate=learning_rate, l2=l2, max_depth=max_depth))
-            decision_trees_classes[c].fit(train_data, train_target[:, c])
-
-        decision_trees.append(decision_trees_classes)
-        
-
-        # TODO: Finally, measure your training and testing accuracies when
-        # using 1, 2, ..., `args.trees` of the created trees.
+    gradient_boosted_trees = GBTrees(trees_to_train, learning_rate, l2, max_depth)
+    gradient_boosted_trees.fit(train_data, train_target)
+    
+    # TODO: Finally, measure your training and testing accuracies when
+    # using 1, 2, ..., `args.trees` of the created trees.
     #
     # To perform a prediction using t trees, compute the y_t(x_i) and return the
     # class with the highest value (pick the smallest class number if there is a tie).
-    train_accuracies = []
-    test_accuracies = []
-    y_pred_train = np.zeros((len(train_data), classes), dtype=np.float64)
-    y_pred_test = np.zeros((len(test_data), classes), dtype=np.float64)
-    for t in range(1, trees_to_train + 1):
-        # Predict using t trees
+    from sklearn.metrics import accuracy_score
+    train_accuracies = [accuracy_score(train_target, gradient_boosted_trees.true_predict(train_data, depth + 1)) for depth in range(args.trees)]
+    test_accuracies = [accuracy_score(test_target, gradient_boosted_trees.true_predict(test_data, depth + 1)) for depth in range(args.trees)]
+    print(gradient_boosted_trees.true_predict(test_data, 1)[:10])
 
-        for c in range(classes):
-            y_pred_train[:, c] += decision_trees[t - 1][c].predict(train_data)
-            y_pred_test[:, c] += decision_trees[t - 1][c].predict(test_data)
+    # plot trees
+    # for depth in range(args.trees):
+    #   for c in range(gradient_boosted_trees.classes):
+    #        plot_tree(gradient_boosted_trees.boosted_trees[depth][c])
 
-        # Compute the training and testing accuracies
-        train_accuracy = np.mean(np.argmax(y_pred_train, axis=1) == np.argmax(train_target, axis=1))
-
-        test_accuracy = np.mean(np.argmax(y_pred_test, axis=1) == np.argmax(test_target, axis=1))
-
-        train_accuracies.append(train_accuracy)
-        test_accuracies.append(test_accuracy)
 
     return [100 * acc for acc in train_accuracies], [100 * acc for acc in test_accuracies]
 

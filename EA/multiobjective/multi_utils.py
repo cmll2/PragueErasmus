@@ -2,7 +2,7 @@ import operator
 import numpy as np
 
 
-HYP_REF = (11, 11) # reference point for hypervolume (do not change - results will not be comparable)
+HYP_REF = (11, 11) # reference point for (do not change - results will not be comparable)
 
 def hypervolume(pop, ref=HYP_REF):
     non_dom = [pop[i] for i in get_first_nondominated(pop)]

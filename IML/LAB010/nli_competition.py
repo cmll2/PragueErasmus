@@ -45,29 +45,45 @@ def main(args: argparse.Namespace) -> Optional[npt.ArrayLike]:
         # TODO: Train a model on the given dataset and store it in `model`.
         train_data = train.data
         train_target = train.target
-
-        #preprocess data
-        import re
-        for i in range(len(train_data)):
-            train_data[i] = re.sub(r'[^\w\s]', '', train_data[i]) #remove punctuation
-            train_data[i] = re.sub(r'\d+', '', train_data[i]) #remove numbers
-            train_data[i] = train_data[i].lower() #lowercase
-        #split data into train and test
+        #train_test_split
         from sklearn.model_selection import train_test_split
-        train_data, test_data, train_target, test_target = train_test_split(train_data, train_target, test_size=0.1, random_state=42)
-
-        #use vectorizer
+        # train_data, test_data, train_target, test_target = train_test_split(train_data, train_target, test_size=0.1, random_state=42)
         from sklearn.feature_extraction.text import TfidfVectorizer
-        vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(2, 5), min_df=1, max_df=0.8, max_features=5000)
-        vectorizer.fit(train_data)
-        train_data = vectorizer.transform(train_data)
-        test_data = vectorizer.transform(test_data)
-        #Gradient Boosting
-        from sklearn.ensemble import GradientBoostingClassifier
-        model = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, max_depth=10, random_state=42)
+        vectorizer = TfidfVectorizer(max_df=0.8, sublinear_tf=True, use_idf=True, ngram_range=(1, 3), max_features=10000, lowercase=True)
+        train_data = vectorizer.fit_transform(train_data)
+        #test_data = vectorizer.transform(test_data)
+        from sklearn.linear_model import RidgeClassifier
+        from sklearn.model_selection import GridSearchCV
+        model = RidgeClassifier()
+        parameters = {'alpha': [1.4], 'tol': [1e-4], 'solver': ['auto', 'svd', 'saga']}
+        clf = GridSearchCV(model, parameters, cv=5, n_jobs=-1)
+        clf.fit(train_data, train_target)
+        model = clf.best_estimator_
+        print('Best parameters: ', clf.best_params_)
+        print('Ridge Classifier train accuracy: ', model.score(train_data, train_target))
+        #print('Ridge Classifier test accuracy: ', model.score(test_data, test_target))
+        from sklearn.linear_model import LogisticRegression
+        model_lr = LogisticRegression()
+        parameters = {'C': [1], 'tol': [1e-4], 'solver': ['lbfgs', 'saga']}
+        clf = GridSearchCV(model_lr, parameters, cv=5, n_jobs=-1)
+        clf.fit(train_data, train_target)
+        model_lr = clf.best_estimator_
+        print('Best parameters: ', clf.best_params_)
+        print('Logistic Regression train accuracy: ', model_lr.score(train_data, train_target))
+        from sklearn.svm import LinearSVC
+        model_lsvm = LinearSVC()
+        parameters = {'C': [1], 'tol': [1e-4], 'loss': ['hinge', 'squared_hinge']}
+        clf = GridSearchCV(model_lsvm, parameters, cv=5, n_jobs=-1)
+        clf.fit(train_data, train_target)
+        model_lsvm = clf.best_estimator_
+        print('Best parameters: ', clf.best_params_)
+        print('Linear SVM train accuracy: ', model_lsvm.score(train_data, train_target))
+        
+        #majority vote
+        from sklearn.ensemble import VotingClassifier
+        model = VotingClassifier(estimators=[('rc', model), ('lr', model_lr), ('lsvm', model_lsvm)], voting='hard')
         model.fit(train_data, train_target)
-        print('Gradient Boosting train accuracy: ', model.score(train_data, train_target))
-        print('Gradient Boosting test accuracy: ', model.score(test_data, test_target))
+        print('Voting Classifier train accuracy: ', model.score(train_data, train_target))
 
         with lzma.open('vectorizer.pkl', 'wb') as vectorizer_file:
             pickle.dump(vectorizer, vectorizer_file)
@@ -85,33 +101,10 @@ def main(args: argparse.Namespace) -> Optional[npt.ArrayLike]:
         with lzma.open('vectorizer.pkl', 'rb') as vectorizer_file:
             vectorizer = pickle.load(vectorizer_file)
 
-        with lzma.open('model_gauss.pkl', 'rb') as model_file:
-            model_gauss = pickle.load(model_file)
-
-        with lzma.open('model_bern.pkl', 'rb') as model_file:
-            model_bern = pickle.load(model_file)
-
-        test_data = test.data
+        test_data = vectorizer.transform(test.data)
+        predictions = model.predict(test_data)
         
-        predictions = []
-        #soft voting
-        for i in range(len(test_data)):
-            nb = model.predict_proba(vectorizer.transform([test_data[i]]))[0]
-            gauss = model_gauss.predict_proba(vectorizer.transform([test_data[i]]).toarray())[0]
-            bern = model_bern.predict_proba(vectorizer.transform([test_data[i]]))[0]
-            nb_index = np.argmax(nb)
-            gauss_index = np.argmax(gauss)
-            bern_index = np.argmax(bern)
-            if nb[nb_index] > gauss[gauss_index] and nb[nb_index] > bern[bern_index]:
-                predictions.append(nb_index)
-            elif gauss[gauss_index] > nb[nb_index] and gauss[gauss_index] > bern[bern_index]:
-                predictions.append(gauss_index)
-            elif bern[bern_index] > nb[nb_index] and bern[bern_index] > gauss[gauss_index]:
-                predictions.append(bern_index)
-            else:
-                predictions.append(nb_index)
-        
-        return np.asarray(predictions).flatten()
+        return predictions
 
 
 if __name__ == "__main__":

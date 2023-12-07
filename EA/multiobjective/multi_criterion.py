@@ -13,13 +13,13 @@ POP_SIZE = 100 # population size
 MAX_GEN = 200 # maximum number of generations
 CX_PROB = 0.2 # crossover probability
 MUT_PROB = 0.8 # mutation probability
-MUT_STEP = 0.05 # size of the mutation steps
+MUT_STEP = 0.4 # size of the mutation steps
 REPEATS = 10 # number of runs of algorithm (should be at least 10)
-OUT_DIR = 'multi_diff_sum1' # output directory for logs
+OUT_DIR = 'data/multi_criterion' # output directory for logs
 EXP_ID = 'default' # the ID of this experiment (used to create log names)
 F = 0.8
 CR = 0.9
-
+COOLDOWN = 0.985
 class MultiIndividual:
 
     def __init__(self, x):
@@ -27,6 +27,19 @@ class MultiIndividual:
         self.fitness = None
         self.ssc = None
         self.front = None
+
+def calculate_hyper_volume_contributions(population, reference=mu.HYP_REF):
+    sorted_population_f1 = sorted(population, key=lambda individual: individual.fitness[0])
+
+    for idx in range(len(sorted_population_f1) - 1):
+        current = sorted_population_f1[idx]
+        next_individual = sorted_population_f1[idx + 1]
+        contribution = (reference[1] - current.fitness[1]) * (next_individual.fitness[0] - current.fitness[0])
+        current.ssc = contribution
+
+    last_individual = sorted_population_f1[-1]
+    last_contribution = (reference[1] - last_individual.fitness[1]) * (reference[0] - last_individual.fitness[0])
+    last_individual.ssc = last_contribution
 
 # creates the individual
 def create_ind(ind_len):
@@ -54,7 +67,7 @@ def nsga2_select(pop, k):
     fronts = mu.divide_fronts(pop)
     selected = []
     for i, f in enumerate(fronts):
-        mu.assign_crowding_distances(f)
+        calculate_hyper_volume_contributions(f)
         for ind in f:
             ind.front = i
         if len(selected) + len(f) <= k:
@@ -88,13 +101,18 @@ def one_pt_cross(p1, p2):
 # size of the mutation adaptively
 class Mutation:
 
-    def __init__(self, step_size):
+    def __init__(self, step_size, cool_down = 1):
         self.step_size = step_size
+        self.cool_down = cool_down
 
     def __call__(self, ind):
         a = ind.x + self.step_size*np.random.normal(size=ind.x.shape)
         np.clip(a, 0, 1, ind.x)
         return ind
+    
+    def cooldown(self):
+        self.step_size *= self.cool_down
+
 import math
 class DifferentialMutationNSGA(Mutation): #This mutation is an implementation of the differential evolution
     def __init__(self, F, CR, fitness_function):
@@ -122,7 +140,7 @@ class DifferentialMutationNSGA(Mutation): #This mutation is an implementation of
             ind.fitness = fit
         fronts = mu.divide_fronts(new_pop)
         for i,f in enumerate(fronts):
-            mu.assign_crowding_distances(f)
+            calculate_hyper_volume_contributions(f)
             for ind in f:
                 ind.front = i
         pop = nsga2_select(pop, POP_SIZE)
@@ -176,6 +194,7 @@ def crossover(pop, cross, cx_prob):
 # applies the mutate function (implementing the mutation of a single individual)
 # to the whole population with probability mut_prob)
 def mutation(pop, mutate, mut_prob):
+    mutate.cooldown()
     return [mutate(p) if random.random() < mut_prob else copy.deepcopy(p) for p in pop]
 
 # implements the evolutionary algorithm
@@ -205,7 +224,7 @@ def evolutionary_algorithm(pop, max_gen, fitness, operators, mate_sel, mutate_in
             evals += len(pop)
             fronts = mu.divide_fronts(pop)
             for i,f in enumerate(fronts):
-                mu.assign_crowding_distances(f)
+                calculate_hyper_volume_contributions(f)
                 for ind in f:
                     ind.front = i
 
@@ -236,15 +255,18 @@ if __name__ == '__main__':
     for fit_name in fit_names:
         fit = mf.get_function_by_name(fit_name)
         opt_hv = mf.get_opt_hypervolume(fit_name)
-        mutate_ind = DifferentialMutationSum(F, CR, fit)
+        # mutate_ind = DifferentialMutationSum(F, CR, fit)
+        mutate_ind = Mutation(MUT_STEP, 0.98)
         xover = functools.partial(crossover, cross=one_pt_cross, cx_prob=CX_PROB)
-        mut = functools.partial(mutation_diff, mutate=mutate_ind)
+        mut = functools.partial(mutation, mutate=mutate_ind, mut_prob=MUT_PROB)
 
         # run the algorithm `REPEATS` times and remember the best solutions from 
         # last generations
     
         best_inds = []
         for run in range(REPEATS):
+            mutate_ind = Mutation(MUT_STEP, COOLDOWN)
+            mut = functools.partial(mutation, mutate=mutate_ind, mut_prob=MUT_PROB)
             # initialize the log structure
             log = utils.Log(OUT_DIR, EXP_ID + '.' + fit_name , run, 
                             write_immediately=True, print_frequency=5)

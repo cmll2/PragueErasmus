@@ -95,6 +95,7 @@ class Mutation:
         a = ind.x + self.step_size*np.random.normal(size=ind.x.shape)
         np.clip(a, 0, 1, ind.x)
         return ind
+    
 import math
 class DifferentialMutationNSGA(Mutation): #This mutation is an implementation of the differential evolution
     def __init__(self, F, CR, fitness_function):
@@ -197,7 +198,6 @@ def mutation(pop, mutate, mut_prob):
 def evolutionary_algorithm(pop, max_gen, fitness, operators, mate_sel, mutate_ind, *, map_fn=map, log=None, opt_hv = np.product(mu.HYP_REF)):
     evals = 0
     for G in range(max_gen):        
-
         if G == 0:
             fits_objs = list(map_fn(fitness, pop))
             for ind, fit in zip(pop, fits_objs):

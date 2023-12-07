@@ -1,9 +1,11 @@
-DIFF_NSGA = 'multi_diff'
-DEFAULT = 'multi_default'
-DIFF_SUM = 'multi_diff_sum'
-DIFF_SUM1 = 'multi_diff_sum1'
-method_names = ['default', 'diff_nsga', 'diff_sum']
-method_dirs = [DEFAULT, DIFF_NSGA, DIFF_SUM1]
+DIFF_NSGA = 'data/multi_diff'
+DEFAULT = 'data/multi_default'
+DIFF_SUM = 'data/multi_diff_sum'
+DIFF_SUM1 = 'data/multi_diff_sum1'
+DIFF_HYPER = 'data/multi_diff_criterion'
+HYPER = 'data/multi_criterion'
+method_names = ['default', 'diff_nsga', 'diff_sum', 'diff_hypervolume', 'default_cd_hypervolume']
+method_dirs = [DEFAULT, DIFF_NSGA, DIFF_SUM1, DIFF_HYPER, HYPER]
 #zdt1,2,3,4,6
 EXP_ID_1 = 'default.ZDT1'
 EXP_ID_2 = 'default.ZDT2'
