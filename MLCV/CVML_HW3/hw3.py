@@ -7,6 +7,10 @@ import pickle
 import numpy as np
 import scipy.io
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+import copy
 
 class DataStorage:
 
@@ -99,6 +103,7 @@ class DataAnalysis:
         poly = PolynomialFeatures(2)
         self._pipeline = Pipeline([('scaler', scaler), ('poly', poly)])
         self._pipeline.fit(self._train_data.features)
+        self._original_features = self._train_data.features.copy()
         self._train_data.features = self._pipeline.transform(self._train_data.features)
         if self._split_for_testing:
             self._test_data.features = self._pipeline.transform(self._test_data.features)
@@ -108,36 +113,81 @@ class DataAnalysis:
         # TODO: You should implement your feature analysis testing code here.
         # - Do not forget to apply your final feature selection/transformation on the data before both training
         #   and testing. This method is only for finding an appropriate feature selection/transformation.
-        correlation_matrix = np.corrcoef(self._train_data.features, rowvar=False)
-        # Set a threshold for selecting features based on correlation
-        threshold = 0.5 
+
+        # Calculate the correlation between features and the target
+        target_correlation = np.abs(np.corrcoef(self._train_data.features, self._train_data.labels, rowvar=False)[:-1, -1])
+
+        # Find features that are highly correlated with the target
+        target_correlation_treshold = 0.15
+        feature_correlation_treshold = 0.7
+
+        # Calculate the correlation matrix among features
+        feature_correlation = np.corrcoef(self._train_data.features, rowvar=False)
+
+        # Initialize selected features with those highly correlated with the target
         selected_features = []
-        for i in range(correlation_matrix.shape[0]):
-            for j in range(i+1, correlation_matrix.shape[1]):
-                if abs(correlation_matrix[i, j]) > threshold:
+        # Iterate through the features to find uncorrelated ones with each other but correlated with the target
+        for i in range(feature_correlation.shape[0]):
+            if i not in selected_features:
+                # Check correlation with already selected features
+                correlated = False
+                for j in range(feature_correlation.shape[1]):
+                    if abs(feature_correlation[i, j]) > feature_correlation_treshold:
+                        correlated = True
+                        if target_correlation[i] > target_correlation[j] and i not in selected_features:
+                            selected_features.append(i)
+                        else:
+                            if j not in selected_features:
+                                selected_features.append(j)
+                        break
+                # Add the feature if it's not correlated with selected features but is correlated with the target
+                if not correlated and target_correlation[i] > target_correlation_treshold and i not in selected_features:
                     selected_features.append(i)
-                    break
-        print("Selected features based on correlation with the target:")
+
+        #remove doublons
+
+
+        print("Selected features based on correlation with the target and among themselves:")
         print(selected_features)
+
         # Update training and testing data with selected features
         self._train_data.features = self._train_data.features[:, selected_features]
         self._test_data.features = self._test_data.features[:, selected_features]
-        self._best_features = selected_features 
+        self._best_features = selected_features
 
     def clusterAnalysis(self):
         """Implementation of the cluster analysis task."""
         # TODO: You should implement your cluster analysis code here.
         from sklearn.cluster import KMeans
-        from sklearn.model_selection import GridSearchCV
-        grid_search = GridSearchCV(KMeans(n_init=10), {'n_clusters': np.arange(2, 10)}, cv=5)
-        grid_search.fit(self._train_data.features, self._train_data.labels)
-        kmeans = grid_search.best_estimator_
-        print("Best number of clusters: {}".format(kmeans.n_clusters))
-        kmeans.fit(self._train_data.features)
-        self._cluster_centers = kmeans.cluster_centers_
-        self._cluster_labels = kmeans.labels_
-        self._cluster_counts = np.bincount(self._cluster_labels)
-    
+        from sklearn.metrics import silhouette_score
+        wcss = []
+        silhouette_scores = []
+        for i in range(2, 20):
+            kmeans = KMeans(n_clusters=i)
+            kmeans.fit(self._original_features)
+            wcss.append(kmeans.inertia_)
+            silhouette_scores.append(silhouette_score(self._original_features, kmeans.labels_))
+
+        fig, ax1 = plt.subplots()
+
+        color = 'tab:red'
+        ax1.set_xlabel('Number of clusters')
+        ax1.set_ylabel('WCSS', color=color)
+        ax1.plot(range(2, 20), wcss, color=color)
+        ax1.tick_params(axis='y', labelcolor=color)
+
+        ax2 = ax1.twinx()  
+        color = 'tab:blue'
+        ax2.set_ylabel('Silhouette Score', color=color)  
+        ax2.plot(range(2, 20), silhouette_scores, color=color)
+        ax2.tick_params(axis='y', labelcolor=color)
+
+        fig.tight_layout() 
+        plt.title('Elbow Method & Silhouette Score comparison')
+        plt.savefig('figures/elbow_and_silhouette_methods.png')
+        plt.show()
+        plt.close()
+        
     def trainSearch(self):
         """Implementation of the search for the best model parameters."""
         # TODO: You should implement your parameter search of the selected models. The results should be
@@ -251,21 +301,32 @@ class DataAnalysis:
             print("Accuracy: {}".format(self._svc.score(self._train_data.features, self._train_data.labels)))
             print("Evaluating for Logistic Regression...")
             print("Accuracy: {}".format(self._lr.score(self._train_data.features, self._train_data.labels)))
+        
+            rf_confusion_matrix = confusion_matrix(self._train_data.labels, self._rfc.predict(self._train_data.features))
+            rf_precision = precision_score(self._train_data.labels, self._rfc.predict(self._train_data.features), average='macro')
+            rf_recall = recall_score(self._train_data.labels, self._rfc.predict(self._train_data.features), average='macro')
+            
+            svm_confusion_matrix = confusion_matrix(self._train_data.labels, self._svc.predict(self._train_data.features))
+            svm_precision = precision_score(self._train_data.labels, self._svc.predict(self._train_data.features), average='macro')
+            svm_recall = recall_score(self._train_data.labels, self._svc.predict(self._train_data.features), average='macro')
+            lr_confusion_matrix = confusion_matrix(self._train_data.labels, self._lr.predict(self._train_data.features))
+            lr_precision = precision_score(self._train_data.labels, self._lr.predict(self._train_data.features), average='macro')
+            lr_recall = recall_score(self._train_data.labels, self._lr.predict(self._train_data.features), average='macro')
+            title = 'Training Set'
 
-        from sklearn.metrics import confusion_matrix
-        from sklearn.metrics import precision_score
-        from sklearn.metrics import recall_score
-        
-        rf_confusion_matrix = confusion_matrix(self._train_data.labels, self._rfc.predict(self._train_data.features))
-        rf_precision = precision_score(self._train_data.labels, self._rfc.predict(self._train_data.features), average='macro')
-        rf_recall = recall_score(self._train_data.labels, self._rfc.predict(self._train_data.features), average='macro')
-        
-        svm_confusion_matrix = confusion_matrix(self._train_data.labels, self._svc.predict(self._train_data.features))
-        svm_precision = precision_score(self._train_data.labels, self._svc.predict(self._train_data.features), average='macro')
-        svm_recall = recall_score(self._train_data.labels, self._svc.predict(self._train_data.features), average='macro')
-        lr_confusion_matrix = confusion_matrix(self._train_data.labels, self._lr.predict(self._train_data.features))
-        lr_precision = precision_score(self._train_data.labels, self._lr.predict(self._train_data.features), average='macro')
-        lr_recall = recall_score(self._train_data.labels, self._lr.predict(self._train_data.features), average='macro')
+        if test_data_path is not None or self._split_for_testing: #evaluate on the custom test set
+            rf_confusion_matrix = confusion_matrix(self._test_data.labels, self._rfc.predict(self._test_data.features))
+            rf_precision = precision_score(self._test_data.labels, self._rfc.predict(self._test_data.features), average='macro')
+            rf_recall = recall_score(self._test_data.labels, self._rfc.predict(self._test_data.features), average='macro')
+
+            svm_confusion_matrix = confusion_matrix(self._test_data.labels, self._svc.predict(self._test_data.features))
+            svm_precision = precision_score(self._test_data.labels, self._svc.predict(self._test_data.features), average='macro')
+            svm_recall = recall_score(self._test_data.labels, self._svc.predict(self._test_data.features), average='macro')
+            lr_confusion_matrix = confusion_matrix(self._test_data.labels, self._lr.predict(self._test_data.features))
+            lr_precision = precision_score(self._test_data.labels, self._lr.predict(self._test_data.features), average='macro')
+            lr_recall = recall_score(self._test_data.labels, self._lr.predict(self._test_data.features), average='macro')
+            title = 'Custom Test Set'
+
         import os
         current_dir = os.getcwd()
         figures_dir = os.path.join(current_dir, 'figures')
@@ -278,24 +339,26 @@ class DataAnalysis:
         plt.xlabel('Precision')
         plt.ylabel('Recall')
         plt.legend()
-        plt.savefig(figures_dir+'precision_recall.png')
+        plt.title('Comparison of the models on {}'.format(title))
+        plt.savefig(figures_dir+'/precision_recall.png')
         plt.close()
         #plot the confusion matrices
         plt.figure()
         plt.imshow(rf_confusion_matrix)
-        plt.title('Random Forest Confusion Matrix')
+        plt.title('Random Forest Confusion Matrix on {}'.format(title))
         plt.colorbar()
-        plt.savefig(figures_dir+'rf_confusion_matrix.png')
+        plt.savefig(figures_dir+'/rf_confusion_matrix.png')
         plt.close()
         plt.figure()
         plt.imshow(svm_confusion_matrix)
-        plt.title('SVM Confusion Matrix')
+        plt.title('SVM Confusion Matrix on {}'.format(title))
         plt.colorbar()
-        plt.savefig(figures_dir+'svm_confusion_matrix.png')
+        plt.savefig(figures_dir+'/svm_confusion_matrix.png')
         plt.close()
         plt.figure()
         plt.imshow(lr_confusion_matrix)
-        plt.title('Logistic Regression Confusion Matrix')
+        plt.title('Logistic Regression Confusion Matrix on {}'.format(title))
         plt.colorbar()
-        plt.savefig(figures_dir+'lr_confusion_matrix.png')
+        plt.savefig(figures_dir+'/lr_confusion_matrix.png')
         plt.close()
+
